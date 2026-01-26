@@ -1,57 +1,23 @@
-%% Constants
-init_cubli_constants;
+%% Run specific constants
+be = 3; % Balancing edge (1-3 are edged, 4 is point)
 
-%% Make linear model
-
-%Define edge for balancing
-balancing_edge = 1;
-equi_up = get_equilibrium_angles(balancing_edge);
-equi_state_up = [equi_up; zeros([6,1])];
-
-% Linear models for equilibrium
-F_up = get_F(equi_up(2),equi_up(3));
-
-% Get rotation matrix around equilibrium
-dgdphi_up = get_dgdphi(equi_up(2),equi_up(3));
-
-% Get linearized state dynamics
-% State space matrices
-A_up = [zeros(3), F_up, zeros(3);
-    II_hat\M*dgdphi_up, zeros(3), C_w*inv(II_hat);
-    -II_hat\M*dgdphi_up, zeros(3), -C_w*(inv(II_hat) + inv(II_w))];
-B_up = [zeros(3);
-    -inv(II_hat)*K_m;
-    (inv(II_hat) + inv(II_w))*K_m];
-
-% Get relevant states for control (removed uncontrollable/relevant states)
-[rs, ri] = get_relevant_states_inputs(balancing_edge);
-
-% Form complete system with A, B, without un controllable/observable states
-[T_canon, cubli_ss_canon] = get_reduced_canon_system(A_up, B_up, balancing_edge, rs, ri);
-
-
-%% Create controller
-% Define Q, penalty for the states
-Q_cubli = eye(length(cubli_ss_canon.A));
-
-% Define R, penalty for the input
-R_cubli = eye(size(cubli_ss_canon.D,2));
-
-% Calculate LQR controller
-[K_canon,~,CLP_canon] = lqr(cubli_ss_canon,Q_cubli,R_cubli);
-[K_canon_d,~,CLP_canon_d] = lqrd(cubli_ss_canon.A, cubli_ss_canon.B, Q_cubli, R_cubli, Ts);
-
-%% Init values
-if balancing_edge == 3
-    phi_0 = [0; -pi/4+pi/4; pi/2]; 
-else
-    phi_0 = [0; 0; 0]; 
+%% Get constants only when not ran before
+if ~exist('init_cubli_constants_ran', 'var')
+    init_cubli_constants;
 end
 
-w_h_0 = [0; 0; 0];
-w_w_0 = [0; 0; 0];
+if ~exist('init_cubli_constants_uncertain_ran', 'var')
+    init_cubli_constants_uncertain_ran;
+end
 
-x_0 = [phi_0; w_h_0; w_w_0];
+%% Create linear model
+[balancing_edge,equi_state_up,rs,T_canon,cubli_ss_canon] = generate_linear_cubli_model(be, II_hat, M, C_w, II_w, K_m);
+
+%% Create controller
+[K_canon, ~, ~, ~] = create_lqr_controller(cubli_ss_canon, Ts);
+
+%% Init values
+x_0 = get_simu_initial_values(balancing_edge);
 
 %% Run simulation for 20 sec
 [t,y] = ode45(@(t,y) odefcn(t,y,II_hat,II,M,II_w,K_m,C_w,K_canon,T_canon,equi_state_up, balancing_edge, rs), [0 10], x_0);
@@ -170,4 +136,59 @@ cubli_ss = ss(A_hat,B_hat,C_hat,D_hat);
 if balancing_edge == 4 %point
     cubli_ss_canon = modred(cubli_ss_canon,length(rs),'truncate');
 end
+end
+
+function [balancing_edge,equi_state_up,rs,T_canon,cubli_ss_canon] = generate_linear_cubli_model(be, II_hat, M, C_w, II_w, K_m)
+%% Make linear model
+
+%Define edge for balancing
+balancing_edge = be; %4 for point balancing, 1-3 are edges
+equi_up = get_equilibrium_angles(balancing_edge);
+equi_state_up = [equi_up; zeros([6,1])];
+
+% Linear models for equilibrium
+F_up = get_F(equi_up(2),equi_up(3));
+
+% Get rotation matrix around equilibrium
+dgdphi_up = get_dgdphi(equi_up(2),equi_up(3));
+
+% Get linearized state dynamics
+% State space matrices
+A_up = [zeros(3), F_up, zeros(3);
+    II_hat\M*dgdphi_up, zeros(3), C_w*inv(II_hat);
+    -II_hat\M*dgdphi_up, zeros(3), -C_w*(inv(II_hat) + inv(II_w))];
+B_up = [zeros(3);
+    -inv(II_hat)*K_m;
+    (inv(II_hat) + inv(II_w))*K_m];
+
+% Get relevant states for control (removed uncontrollable/relevant states)
+[rs, ri] = get_relevant_states_inputs(balancing_edge);
+
+% Form complete system with A, B, without un controllable/observable states
+[T_canon, cubli_ss_canon] = get_reduced_canon_system(A_up, B_up, balancing_edge, rs, ri);
+end
+
+function [K_canon, CLP_canon, K_canon_d, CLP_canon_d] = create_lqr_controller(cubli_ss_canon, Ts)
+% Define Q, penalty for the states
+Q_cubli = eye(length(cubli_ss_canon.A));
+
+% Define R, penalty for the input
+R_cubli = eye(size(cubli_ss_canon.D,2));
+
+% Calculate LQR controller
+[K_canon,~,CLP_canon] = lqr(cubli_ss_canon,Q_cubli,R_cubli);
+[K_canon_d,~,CLP_canon_d] = lqrd(cubli_ss_canon.A, cubli_ss_canon.B, Q_cubli, R_cubli, Ts);
+end
+
+function x_0 = get_simu_initial_values(balancing_edge)
+if balancing_edge == 3
+    phi_0 = [0; -pi/4+pi/4; pi/2]; 
+else
+    phi_0 = [0; 0; 0]; 
+end
+
+w_h_0 = [0; 0; 0];
+w_w_0 = [0; 0; 0];
+
+x_0 = [phi_0; w_h_0; w_w_0];
 end
