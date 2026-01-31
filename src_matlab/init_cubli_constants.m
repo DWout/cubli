@@ -39,6 +39,9 @@ M = m_h*r_h_t + m_w*r_w_1_t + m_w*r_w_2_t + m_w*r_w_3_t;
 % Control:
 Ts = 0.01; %Sec = 100Hz
 
+% Define that this file ran completely
+init_cubli_constants_ran = 1;
+
 function m = create_skew_sym_matrix_3(v)
     m = [0,     -v(3),    v(2);
         v(3),   0,        -v(1);
