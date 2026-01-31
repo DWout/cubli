@@ -1,14 +1,15 @@
 %% Run specific constants
-be = 3; % Balancing edge (1-3 are edged, 4 is point)
+be = 4; % Balancing edge (1-3 are edged, 4 is point)
+add_sinus_input = false; %Add various sinusoidal distrubances to motor input to identify model
 
-%% Get constants only when not ran before
-if ~exist('init_cubli_constants_ran', 'var')
-    init_cubli_constants;
-end
+%% Define what part of file should be ran
+run_sim_design_constants = true;
+run_sim_pertubated_constants = true;
+plot_figures = true;
 
-if ~exist('init_cubli_constants_uncertain_ran', 'var')
-    init_cubli_constants_uncertain_ran;
-end
+%% Get constants.
+init_cubli_constants;
+init_cubli_constants_uncertain;
 
 %% Create linear model
 [balancing_edge,equi_state_up,rs,T_canon,cubli_ss_canon] = generate_linear_cubli_model(be, II_hat, M, C_w, II_w, K_m);
@@ -19,11 +20,31 @@ end
 %% Init values
 x_0 = get_simu_initial_values(balancing_edge);
 
-%% Run simulation for 20 sec
-[t,y] = ode45(@(t,y) odefcn(t,y,II_hat,II,M,II_w,K_m,C_w,K_canon,T_canon,equi_state_up, balancing_edge, rs), [0 10], x_0);
-sim_ts_phi = timeseries(y(:,1:3),t); % timeseries of position of housing
-sim_ts_w_w = timeseries(y(:,7:9),t); % timeseries of speed of flying wheels
-plot(sim_ts_phi)
+%% Run simulation on either design constants or pertubated constants
+if run_sim_design_constants == true
+    % Run simulation for 10 sec on model with correct constants
+    [t,y] = ode45(@(t,y) odefcn(t,y,II_hat,II,M,II_w,K_m,C_w,K_canon,T_canon,equi_state_up, balancing_edge, rs), [0 10], x_0);
+
+    if plot_figures == true
+        % Plot figures corresponding to simulation on design constants    
+        sim_ts_phi = timeseries(y(:,1:3),t,'Name','Housing position design constants'); % timeseries of position of housing
+        sim_ts_w_w = timeseries(y(:,7:9),t,'Name','Flywheel speed design constants'); % timeseries of speed of flying wheels
+        figure('Name','Simulation of design constants');plot(sim_ts_phi)
+        legend('Yaw (alpha)','Pitch (beta)','Roll (gamma)');
+    end
+end
+
+if run_sim_pertubated_constants == true
+    % Run simulation for 10 sec on model with pertubated constants
+    [t_pert,y_pert] = ode45(@(t_pert,y_pert) odefcn(t_pert,y_pert,II_hat_pert,II_pert,M_pert,II_w_pert,K_m_pert,C_w_pert,K_canon,T_canon,equi_state_up, balancing_edge, rs), [0 10], x_0);
+    if plot_figures == true
+        % Plot figures corresponding to simulation on pertubated constants
+        sim_ts_phi_pert = timeseries(y_pert(:,1:3),t_pert,'Name','Housing position pertubated constants'); % timeseries of position of housing
+        sim_ts_w_w_pert = timeseries(y_pert(:,7:9),t_pert,'Name','Flywheel speed pertubated constants'); % timeseries of speed of flying wheels
+        figure('Name','Simulation of pertubated constants'); plot(sim_ts_phi_pert)
+        legend('Yaw (alpha)','Pitch (beta)','Roll (gamma)');
+    end
+end
 
 function x_dot = odefcn(~, x, II_hat, II, M, II_w, K_m, C_w, K_canon, T_canon, equi_state_up, balancing_edge, rs)
     % Input
