@@ -5,11 +5,13 @@ run('init_cubli_constants.m');
 
 % Get edge constants for perticular edge
 be = 1; % Edge to balance on (1,2,3, alinging with e axis)
+M = m_h*r_h_est + m_w*r_w; %Mass of inverted pendulum including housing and flywheel
+g_0 = 9.81; %Gravity
 
 % Define state space model for LQR controller
 A = [0, 1, 0;
-     Th_T\M*g_0, 0, Th_T\C_w;
-     -Th_T\M*g_0, 0, -C_w*(inv(T_wT) + inv(Th_T))];
+     Th_T\(M*g_0), 0, Th_T\C_w;
+     -Th_T\(M*g_0), 0, -C_w*(inv(T_wT) + inv(Th_T))];
 B = [-Th_T\K_m; 0; K_m*(inv(T_wT) + inv(Th_T))];
 C = eye(3);
 D = zeros(3,1); 
@@ -21,10 +23,9 @@ R = 0.01;
 % Create LQR controller
 K = lqr(A, B, Q, R);
 
-Order         = [3 1 3];               % Model orders [ny nu nx].
-Parameters    = [0.5; 0.003; 0.019; ...
-                 9.81; 0.25; 0.016];   % Initial parameter vector.
-InitialStates = [0; 0.1];              % Initial values of initial states.
+Order         = [3 1 3];                        % Model orders [ny nu nx].
+Parameters    = [K_m, C_w, Th_T, T_wT, r_h];    % Initial parameter vector.
+InitialStates = [0; 0; 0];                      % Initial values of initial states.
 nlgr_m    = idnlgrey('nlode_edge', Order, Parameters, InitialStates, 0)
 
 
