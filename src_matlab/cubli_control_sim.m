@@ -1,5 +1,5 @@
 %% Run specific constants
-be = 4; % Balancing edge (1-3 are edged, 4 is point)
+be = 3; % Balancing edge (1-3 are edged, 4 is point)
 add_sinus_input = false; %Add various sinusoidal distrubances to motor input to identify model
 
 %% Define what part of file should be ran

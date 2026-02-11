@@ -22,6 +22,7 @@
 % VERSION: 1.0
 
 % Perturbation constants
+rng(0); % Set random seed for reproducibility
 noise_scale_constant = 5; % The higher the value, the lower the noise
 eps_mag = 0.05; %defines how much the rotation matrix should rotate
 R_perturb = create_R_pertub(eps_mag); % Create random rotation matrix for inertia tensors
